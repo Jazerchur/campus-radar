@@ -93,8 +93,11 @@ def generate_brief(jobs: List[JobItem], new_keys: set, all_raw_count: dict) -> s
     lines.append("|------|------------|---------|---------|")
     for company in sorted_companies:
         cnt = all_raw_count[company]
-        hit = len([j for j in target_jobs if j.company == company])
-        new = len([j for j in new_jobs if j.company == company])
+        # 聚合源的条目用 offerstar·公司名 展示，总览仍归入 offerstar。
+        company_jobs = [j for j in target_jobs if j.company == company
+                        or (company == "offerstar" and j.company.startswith("offerstar·"))]
+        hit = len(company_jobs)
+        new = sum(getattr(j, "_is_new", False) for j in company_jobs)
         lines.append(f"| {company} | {cnt} | {hit} | {new if new else '-'} |")
     lines.append("")
 

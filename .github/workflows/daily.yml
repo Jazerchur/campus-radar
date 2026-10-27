@@ -1,11 +1,18 @@
 name: 秋招雷达日报
 
 on:
-  # 修改筛选配置或本工作流后，自动运行一次以验证设置
+  # 修改筛选配置、程序或本工作流后，自动运行一次以验证设置
   push:
     branches: [main]
     paths:
       - 'config.py'
+      - 'main.py'
+      - 'report.py'
+      - 'store.py'
+      - 'push.py'
+      - 'tracker.py'
+      - 'scrapers/**'
+      - 'requirements.txt'
       - '.github/workflows/daily.yml'
   schedule:
     # 每天北京时间 09:00 运行（UTC 01:00）
