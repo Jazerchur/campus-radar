@@ -10,33 +10,28 @@ REPORT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
 
 
 def _match_keywords(job: JobItem) -> bool:
-    """判断岗位是否命中产品运营关键词"""
-    text = f"{job.title} {job.category} {job.tags}"
+    """判断岗位是否命中配置中的关注方向，英文忽略大小写"""
+    text = f"{job.title} {job.category} {job.tags}".casefold()
+    category = (job.category or "").casefold()
     # 优先按类别命中
     for cat_kw in config.CATEGORY_KEYWORDS:
-        if cat_kw in job.category:
+        if cat_kw.casefold() in category:
             return True
     # 再按标题关键词兜底
     all_kw = []
     for kws in config.KEYWORDS.values():
         all_kw.extend(kws)
-    return any(kw in text for kw in all_kw)
+    return any(kw.casefold() in text for kw in all_kw)
 
 
 def _enrich_category(job: JobItem) -> JobItem:
-    """如果 category 不含关注方向关键词，用 guess_category 补充"""
+    """保留官网类别，同时根据标题补充数据运营等更细分的方向"""
     from scrapers.base import guess_category
-    # 检查现有 category 是否已包含关注方向
-    has_focus = any(kw in job.category for kw in config.CATEGORY_KEYWORDS)
-    if not has_focus:
-        guessed = guess_category(job.title)
-        # 只保留关注方向的类别（产品/运营/电商），不追加技术等
-        focus_cats = [c for c in guessed.split("、") if c in config.KEYWORDS.keys()]
-        if focus_cats:
-            existing = [c for c in job.category.split("、") if c] if job.category else []
-            # 合并去重
-            merged = list(dict.fromkeys(focus_cats + existing))
-            job.category = "、".join(merged)
+    guessed = guess_category(job.title)
+    focus_cats = [c for c in guessed.split("、") if c in config.KEYWORDS]
+    if focus_cats:
+        existing = [c for c in job.category.split("、") if c] if job.category else []
+        job.category = "、".join(dict.fromkeys(focus_cats + existing))
     return job
 
 
@@ -65,6 +60,7 @@ def generate_brief(jobs: List[JobItem], new_keys: set, all_raw_count: dict) -> s
     """生成当日 Markdown 简报"""
     today = date.today().isoformat()
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    focus_directions = " / ".join(config.KEYWORDS)
 
     # 过滤出目标岗位
     target_jobs = filter_jobs(jobs)
@@ -78,7 +74,7 @@ def generate_brief(jobs: List[JobItem], new_keys: set, all_raw_count: dict) -> s
     lines = []
     lines.append(f"# 📋 秋招雷达日报 · {today}")
     lines.append("")
-    lines.append(f"> 自动抓取于 {now} ｜ 关注方向：电商 / 产品 / 运营 ｜ 目标城市：{('、'.join(config.TARGET_CITIES)) or '全国'}")
+    lines.append(f"> 自动抓取于 {now} ｜ 关注方向：{focus_directions} ｜ 目标城市：{('、'.join(config.TARGET_CITIES)) or '全国'}")
     lines.append("")
 
     # 公司排序：官网优先，offerstar 最后
@@ -129,12 +125,12 @@ def generate_brief(jobs: List[JobItem], new_keys: set, all_raw_count: dict) -> s
     else:
         lines.append("## 🆕 今日新增岗位")
         lines.append("")
-        lines.append("今日暂无新增的目标岗位。各公司官网一旦放出新的电商/产品/运营岗，次日简报会自动列出。")
+        lines.append(f"今日暂无新增的目标岗位。持续关注方向：{focus_directions}。已抓取过的岗位可在下方“当前在招”中查看。")
         lines.append("")
 
     # 在招岗位存量（命中的，便于随时查阅）
     if existing_jobs:
-        lines.append("## 📌 当前在招（电商/产品/运营方向）")
+        lines.append(f"## 📌 当前在招（{focus_directions}）")
         lines.append("")
         lines.append("<details><summary>点击展开全部在招岗位</summary>")
         lines.append("")

@@ -46,10 +46,11 @@ class BaseScraper:
 def guess_category(title: str) -> str:
     """从岗位标题推断职位类别（当 API 不返回类别时的兜底方案）"""
     title = title or ""
+    folded_title = title.casefold()
     cats = []
-    # 产品/运营类（用户关注方向）
+    # 使用配置中的细分方向，英文岗位名忽略大小写
     for kw, kws in config.KEYWORDS.items():
-        if kw in title or any(k in title for k in kws):
+        if kw.casefold() in folded_title or any(k.casefold() in folded_title for k in kws):
             cats.append(kw)
     # 技术类
     tech_kw = ["算法", "工程师", "开发", "架构", "前端", "后端", "客户端",
