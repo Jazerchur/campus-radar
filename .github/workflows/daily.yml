@@ -1,6 +1,12 @@
 name: 秋招雷达日报
 
 on:
+  # 修改筛选配置或本工作流后，自动运行一次以验证设置
+  push:
+    branches: [main]
+    paths:
+      - 'config.py'
+      - '.github/workflows/daily.yml'
   schedule:
     # 每天北京时间 09:00 运行（UTC 01:00）
     # GitHub cron 可能有几分钟延迟，属正常现象
@@ -10,14 +16,23 @@ on:
 permissions:
   contents: write  # 需要写权限来 commit 简报和数据库
 
+# 串行更新数据库，避免手动运行和定时任务同时保存数据
+concurrency:
+  group: campus-radar-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   daily-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       TZ: Asia/Shanghai   # 设置时区为北京时间，简化日期计算
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          # 排队后读取分支最新数据，避免使用旧数据库
+          ref: ${{ github.ref_name }}
 
       - name: 安装 Python
         uses: actions/setup-python@v5
